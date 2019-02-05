@@ -45,7 +45,7 @@ for i in range(len(Output_Layer)):
 	Output_Layer[i] = Weight_Vector_Gen(12)
 
 
-#Initialization of testcases
+#Initialization of training set
 
 TRAIN = pd.read_csv('mnist_train.csv', delimiter = ',')
 pd.to_numeric(TRAIN['label'])
