@@ -11,8 +11,7 @@ import time
 
 
 #Important Variables: 
-Learning_Rate = 0.0001
-
+Learning_Rate = 0.0083
 
 
 random.seed(1)
@@ -22,7 +21,7 @@ random.seed(1)
 def Weight_Vector_Gen(dimension_of_vector):
 	Weight_Vector_IN = np.zeros((dimension_of_vector,1))
 	for i in range(len(Weight_Vector_IN)):
-		t = float((random.randint(-10,10))/100)
+		t = float((random.randint(-50,50))/100)
 		Weight_Vector_IN[i] = t
 	return Weight_Vector_IN
 
@@ -31,6 +30,9 @@ def Sub_DataFrame_Train_According_to_label(DataFrame, Label_Value):
  	DataFrame = pd.DataFrame(DataFrame)
  	newDataFrame = DataFrame[DataFrame.label==Label_Value]
  	return newDataFrame
+
+def Softmax(z):
+	return np.exp(-z)/np.sum(np.exp(-z))
 
 
 #Initialization of Weight vectors for each layer.
@@ -78,69 +80,72 @@ possible_outputs = list(TRAIN['label'].unique())
 possible_outputs = sorted(possible_outputs)
 one_hot_encoded = pd.get_dummies(possible_outputs).values
 
-for a in range(0, 5000):
-	
-	#Target result (one-hot-encoding used)
-	Target = one_hot_encoded[TRAIN['label'][a]].reshape((10,1))
+for x in range(0, 200):
+	for a in range(0, 30):
+		
+		#Target result (one-hot-encoding used)
+		Target = one_hot_encoded[TRAIN['label'][a]].reshape((10,1))
 
-	#For each training instance, propagate forward all activation results from input-layer to hidden-layer.
-	#Hidden-Layer nodes possess 784 weight-vector. 
-	for i in range(0, len(Hidden_Layer)):
-		Input_Layer_Output = np.dot(Hidden_Layer[i].transpose(), TRAIN.loc[a:a, '1x1':'28x28'].transpose().values)
-		Input_Layer_Activation = 1 / (1 + np.exp(-Input_Layer_Output)) + float((random.randint(-10,10))/100)
-		Weighted_Sums_Hidden_Layer[i] = (Input_Layer_Activation)
-	
-	#For each hidden-node, propagate forward activation results to output-layer. 
-	#Output-layer nodes possess 12 weight vector. 
-	for j in range(0, len(Output_Layer)):	
-		Hidden_Layer_Output = np.dot(Output_Layer[j].transpose(), Weighted_Sums_Hidden_Layer) 
-		Hidden_Layer_Activation = 1 / (1 + np.exp(-Hidden_Layer_Output)) + float((random.randint(-10,10))/100)
-		Weighted_Sums_Output_Layer[j] = (Hidden_Layer_Activation)
-		Weighted_Sums_Output_Layer = scipy.special.softmax(Weighted_Sums_Output_Layer)
-	print(Weighted_Sums_Output_Layer, Target)
-	
+		#For each training instance, propagate forward all activation results from input-layer to hidden-layer.
+		#Hidden-Layer nodes possess 784 weight-vector. 
+		for i in range(0, len(Hidden_Layer)):
+			Input_Layer_Output = np.dot(Hidden_Layer[i].transpose(), TRAIN.loc[a:a, '1x1':'28x28'].transpose().values)
+			Input_Layer_Activation = 1 / (1 + np.exp(-Input_Layer_Output)) + float((random.randint(-20,20))/100)
+			Weighted_Sums_Hidden_Layer[i] = (Input_Layer_Activation)
+		
+		#For each hidden-node, propagate forward activation results to output-layer. 
+		#Output-layer nodes possess 12 weight vector. 
+		for j in range(0, len(Output_Layer)):	
+			Hidden_Layer_Output = np.dot(Output_Layer[j].transpose(), Weighted_Sums_Hidden_Layer) 
+			Weighted_Sums_Output_Layer[j] = Hidden_Layer_Output + float((random.randint(-20,20))/100)
+		
+		Weighted_Sums_Output_Layer = Softmax(Weighted_Sums_Output_Layer)
+			# Hidden_Layer_Activation = 1 / (1 + np.exp(-Hidden_Layer_Output)) + float((random.randint(-10,10))/100)
+			# Weighted_Sums_Output_Layer[j] = (Hidden_Layer_Activation)
+		
 
+		#Start of backpropagation. 
 
+		#Compute Error on Output-Layer
+		Error_Out_Vector = Target - Weighted_Sums_Output_Layer
 
-	#Start of backpropagation. 
+		New_Global_Error=sum(Error_Out_Vector*Error_Out_Vector)
 
-	#Compute Error on Output-Layer
-	Error_Out_Vector = Target - Weighted_Sums_Output_Layer
 	#Compute Sigma and Weight-Delta from Output Layer to Hidden Layer.
-	for k in range(0, len(Output_Layer)):
-		#Fill in Sigma Vector
-		Sigma_Output_Layer_Vector[k] = Error_Out_Vector[k]*(1-Weighted_Sums_Output_Layer[k])*(Weighted_Sums_Output_Layer[k])
+		for k in range(0, len(Output_Layer)):
+			#Fill in Sigma Vector
+			Sigma_Output_Layer_Vector[k] = Error_Out_Vector[k]*(1-Weighted_Sums_Output_Layer[k])*(Weighted_Sums_Output_Layer[k])
+			for h in range(0, len(Hidden_Layer)):
+			#Create Delta Vector for Weight update between Hidden and Output Layer
+				Delta_Hidden_to_Output_Sub_Vector[k] = Learning_Rate*Sigma_Output_Layer_Vector[k]*Weighted_Sums_Hidden_Layer[h]
+			
+			Delta_Hidden_to_Output_Vector[k] = Delta_Hidden_to_Output_Sub_Vector
+			#Multiply Output Layer Delta Node with each Weight connected to that node, and then sum it up. 
+			Weighted_Sum_Error = sum(Sigma_Output_Layer_Vector[k]*Output_Layer[k])
+			Weighted_Input_to_Hidden_Vector[k] = Weighted_Sum_Error 
+
+		#Sigma and Delta Generation for Hidden Layer nodes 	
 		for h in range(0, len(Hidden_Layer)):
-		#Create Delta Vector for Weight update between Hidden and Output Layer
-			Delta_Hidden_to_Output_Sub_Vector[k] = Learning_Rate*Sigma_Output_Layer_Vector[k]*Weighted_Sums_Hidden_Layer[h]
+			for j in range(0, len(Output_Layer)):
+				Sigma_Input_to_Hidden_Vector[h] = Weighted_Sums_Hidden_Layer[h]*(1-Weighted_Sums_Hidden_Layer[h])*(Weighted_Input_to_Hidden_Vector[j])
+			
+			Delta_Input_to_Hidden_Sub_Vector = Learning_Rate*Sigma_Input_to_Hidden_Vector[h]*TRAIN.loc[a:a, '1x1':'28x28'].values.transpose()
+			Delta_Input_to_Hidden_Vector[h] = Delta_Input_to_Hidden_Sub_Vector
+
+		#Weight updating: Final. 
+
+		for o in range(0,len(Output_Layer)):
+			Output_Layer[o] = Output_Layer[o] + Delta_Hidden_to_Output_Vector[o]
+
+		for h in range(0, len(Hidden_Layer)):
+			Hidden_Layer[h] = Hidden_Layer[h] + Delta_Input_to_Hidden_Vector[h]
 		
-		Delta_Hidden_to_Output_Vector[k] = Delta_Hidden_to_Output_Sub_Vector
-		#Multiply Output Layer Delta Node with each Weight connected to that node, and then sum it up. 
-		Weighted_Sum_Error = sum(Sigma_Output_Layer_Vector[k]*Output_Layer[k])
-		Weighted_Input_to_Hidden_Vector[k] = Weighted_Sum_Error 
-
-	#Sigma and Delta Generation for Hidden Layer nodes 	
-	for h in range(0, len(Hidden_Layer)):
-		for j in range(0, len(Output_Layer)):
-			Sigma_Input_to_Hidden_Vector[h] = Weighted_Sums_Hidden_Layer[h]*(1-Weighted_Sums_Hidden_Layer[h])*(Weighted_Input_to_Hidden_Vector[j])
-		
-		Delta_Input_to_Hidden_Sub_Vector = Learning_Rate*Sigma_Input_to_Hidden_Vector[h]*TRAIN.loc[a:a, '1x1':'28x28'].values.transpose()
-		Delta_Input_to_Hidden_Vector[h] = Delta_Input_to_Hidden_Sub_Vector
-
-	#Weight updating: Final. 
-
-	for o in range(0,len(Output_Layer)):
-		Output_Layer[o] = Output_Layer[o] + Delta_Hidden_to_Output_Vector[o]
-
-	for h in range(0, len(Hidden_Layer)):
-		Hidden_Layer[h] = Hidden_Layer[h] + Delta_Input_to_Hidden_Vector[h]
 
 
 #END OF ERROR PROPAGATION
 
 
 
-print('End of Training')
 
 
 #Testing 
@@ -152,22 +157,25 @@ GoodCount = 0
 
 for a in range(10001, 11000):
 
-	Target = one_hot_encoded[TRAIN['label'][a]].reshape((10,1))
+	Test_Target = one_hot_encoded[TRAIN['label'][a]].reshape((10,1))
 	for i in range(len(Hidden_Layer)):
 		Input_Layer_Output = np.dot(Hidden_Layer[i].transpose(), TRAIN.loc[a:a, '1x1':'28x28'].transpose().values)
-		Input_Layer_Activation = 1 / (1 + np.exp(-Input_Layer_Output)) + float((random.randint(-10,10))/100)
+		Input_Layer_Activation = 1 / (1 + np.exp(-Input_Layer_Output)) + float((random.randint(-20,20))/100)
 		Weighted_Sums_Hidden_Layer[i] = (Input_Layer_Activation)
 	
 	#For each hidden-node, propagate forward activation results to output-layer. 
 	#Output-layer nodes possess 12 weight vector. 
 	for j in range(len(Output_Layer)):	
 		Hidden_Layer_Output = np.dot(Output_Layer[j].transpose(), Weighted_Sums_Hidden_Layer) 
-		Hidden_Layer_Activation = 1 / (1 + np.exp(-Hidden_Layer_Output)) + float((random.randint(-10,10))/100)
-		Weighted_Sums_Output_Layer[j] = (Hidden_Layer_Activation)
+		# Hidden_Layer_Activation = 1 / (1 + np.exp(-Hidden_Layer_Output)) + float((random.randint(-10,10))/100)
+		Weighted_Sums_Output_Layer[j] = (Hidden_Layer_Output) + float((random.randint(-20,20))/100)
+	Weighted_Sums_Output_Layer = Softmax(Weighted_Sums_Output_Layer) 
 
+	# print(np.argmax(Weighted_Sums_Output_Layer),np.argmax(Test_Target))
 
-	if(np.argmax(Weighted_Sums_Output_Layer)==(np.argmax(Target))):
+	if(np.argmax(Weighted_Sums_Output_Layer)==(np.argmax(Test_Target))):
 		GoodCount+=1
 
-Success_Rate = GoodCount/2000
+	
+Success_Rate = GoodCount/1000
 print(Success_Rate)
