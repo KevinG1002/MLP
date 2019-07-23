@@ -112,7 +112,7 @@ for x in range(0, 200):
 		#For each training instance, propagate forward all activation results from input-layer to hidden-layer.
 		#Hidden-Layer nodes possess 784 weight-vector. 
 		for i in range(0, len(Hidden_Layer)):
-			Input_Layer_Output = np.dot(Hidden_Layer[i].transpose(), TRAIN.loc[a:a, '1x1':'28x28'].transpose().values)
+			Input_Layer_Output = np.dot(Hidden_Layer[i].transpose(), (TRAIN.loc[a:a, '1x1':'28x28'].transpose().values)/255)
 			Input_Layer_Activation = 1 / (1 + np.exp(-Input_Layer_Output)) + float((random.randint(-20,20))/100)
 			Weighted_Sums_Hidden_Layer[i] = (Input_Layer_Activation)
 		
@@ -152,7 +152,7 @@ for x in range(0, 200):
 			for j in range(0, len(Output_Layer)):
 				Sigma_Input_to_Hidden_Vector[h] = Weighted_Sums_Hidden_Layer[h]*(1-Weighted_Sums_Hidden_Layer[h])*(Weighted_Input_to_Hidden_Vector[j])
 			
-			Delta_Input_to_Hidden_Sub_Vector = Learning_Rate*Sigma_Input_to_Hidden_Vector[h]*TRAIN.loc[a:a, '1x1':'28x28'].values.transpose()
+			Delta_Input_to_Hidden_Sub_Vector = Learning_Rate*Sigma_Input_to_Hidden_Vector[h]*((TRAIN.loc[a:a, '1x1':'28x28'].values)/255).transpose())
 			Delta_Input_to_Hidden_Vector[h] = Delta_Input_to_Hidden_Sub_Vector
 
 		#Weight updating: Final. 
